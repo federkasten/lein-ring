@@ -1,4 +1,4 @@
-(ns leiningen.ring.util
+(ns leiningen.ring-jetty.util
   (:use [leinjacker.eval :only (eval-in-project)])
   (:require [clojure.string :as str]
             [clojure.java.io :as io]

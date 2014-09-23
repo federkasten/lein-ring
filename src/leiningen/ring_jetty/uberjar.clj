@@ -1,7 +1,7 @@
-(ns leiningen.ring.uberjar
-  (:use [leiningen.ring.util :only (ensure-handler-set!)]
-        [leiningen.ring.server :only (add-server-dep)])
-  (:require [leiningen.ring.jar :as jar]
+(ns leiningen.ring-jetty.uberjar
+  (:use [leiningen.ring-jetty.util :only (ensure-handler-set!)]
+        [leiningen.ring-jetty.server :only (add-server-dep)])
+  (:require [leiningen.ring-jetty.jar :as jar]
             leiningen.uberjar))
 
 (defn uberjar

@@ -1,5 +1,5 @@
-(ns leiningen.ring.server-headless
-  (:use leiningen.ring.server))
+(ns leiningen.ring-jetty.server-headless
+  (:use leiningen.ring-jetty.server))
 
 (defn server-headless
   "Start a Ring server without opening a browser."

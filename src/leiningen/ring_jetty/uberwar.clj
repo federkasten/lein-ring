@@ -1,6 +1,6 @@
-(ns leiningen.ring.uberwar
-  (:use leiningen.ring.util)
-  (:require [leiningen.ring.war :as war]
+(ns leiningen.ring-jetty.uberwar
+  (:use leiningen.ring-jetty.util)
+  (:require [leiningen.ring-jetty.war :as war]
             [leinjacker.deps :as deps]
             [leiningen.compile :as compile]
             [clojure.java.io :as io]

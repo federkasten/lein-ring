@@ -1,6 +1,6 @@
-(ns leiningen.ring.jar
-  (:use [leiningen.ring.util :only (compile-form ensure-handler-set! update-project)]
-        [leiningen.ring.server :only (add-server-dep)])
+(ns leiningen.ring-jetty.jar
+  (:use [leiningen.ring-jetty.util :only (compile-form ensure-handler-set! update-project)]
+        [leiningen.ring-jetty.server :only (add-server-dep)])
   (:require [clojure.string :as str]
             leiningen.jar))
 
