@@ -69,6 +69,7 @@
        (when-not (and (number? result) (pos? result))
          (let [war-path (war/war-file-path project war-name)]
            (war/compile-servlet project)
+           (war/compile-ws-servlet project)
            (if (war/has-listener? project)
              (war/compile-listener project))
            (write-uberwar project war-path)

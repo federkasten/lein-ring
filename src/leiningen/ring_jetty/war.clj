@@ -68,6 +68,26 @@
       (str (get-in project [:ring :handler])
            " servlet")))
 
+(defn ws-servlet-class [ws-context-path ws-handler]
+  (let [ns-parts (-> (namespace ws-handler)
+                     (string/replace "-" "_")
+                     (string/split #"\.")
+                     (butlast)
+                     (vec)
+                     (conj "servlet"))]
+    (str
+     (string/join "." ns-parts)
+     "_ws"
+     (string/replace ws-context-path "/" "_"))))
+
+(defn ws-servlet-ns [ws-context-path ws-handler]
+  (-> (ws-servlet-class ws-context-path ws-handler)
+      (string/replace "_" "-")))
+
+(defn ws-servlet-name [ws-context-path ws-handler]
+  (str (ws-servlet-ns ws-context-path ws-handler)
+       " servlet"))
+
 (defn has-listener? [project]
   (let [ring-options (:ring project)]
     (or (contains? ring-options :init)
@@ -114,27 +134,43 @@
                                    "http://java.sun.com/xml/ns/javaee/web-app_3_0.xsd")
           :version "3.0"}})
 
-(def default-servlet-version "2.5")
+(def default-servlet-version "3.0")
 
 (defn make-web-xml [project]
   (let [ring-options (:ring project)]
     (if (contains? ring-options :web-xml)
       (slurp (:web-xml ring-options))
       (indent-str
-        (sexp-as-element
-          [:web-app
-           (get web-app-attrs
-                (get-in project [:ring :servlet-version] default-servlet-version)
-                {})
-           (if (has-listener? project)
-             [:listener
-              [:listener-class (listener-class project)]])
-           [:servlet
-            [:servlet-name  (servlet-name project)]
-            [:servlet-class (servlet-class project)]]
-           [:servlet-mapping
-            [:servlet-name (servlet-name project)]
-            [:url-pattern (url-pattern project)]]])))))
+       (sexp-as-element
+        (let [ws-context (get-in project [:ring :websockets])
+              servlets (conj (map
+                              (fn [[context-path handler]]
+                                [:servlet
+                                 [:servlet-name  (ws-servlet-name context-path handler)]
+                                 [:servlet-class (ws-servlet-class context-path handler)]])
+                              ws-context)
+                             [:servlet
+                              [:servlet-name  (servlet-name project)]
+                              [:servlet-class (servlet-class project)]])
+              servlet-mappings (conj (map
+                                      (fn [[context-path handler]]
+                                        [:servlet-mapping
+                                         [:servlet-name (ws-servlet-name context-path handler)]
+                                         [:url-pattern (str context-path "/")]])
+                                      ws-context)
+                                     [:servlet-mapping
+                                      [:servlet-name (servlet-name project)]
+                                      [:url-pattern (url-pattern project)]])]
+          (into []
+                (concat [:web-app
+                         (get web-app-attrs
+                              (get-in project [:ring :servlet-version] default-servlet-version)
+                              {})
+                         (if (has-listener? project)
+                           [:listener
+                            [:listener-class (listener-class project)]])]
+                        servlets
+                        servlet-mappings))))))))
 
 (defn generate-handler [project handler-sym]
   (if (get-in project [:ring :servlet-path-info?] true)
@@ -152,9 +188,9 @@
         servlet-ns  (symbol (servlet-ns project))]
     (compile-form project servlet-ns
       `(do (ns ~servlet-ns
-             (:require ring.util.servlet ~handler-ns)
+             (:require ring-jetty.util.servlet ~handler-ns)
              (:gen-class :extends javax.servlet.http.HttpServlet))
-           (ring.util.servlet/defservice
+           (ring-jetty.util.servlet/defservice
              ~(generate-handler project handler-sym))))))
 
 (defn compile-listener [project]
@@ -175,6 +211,18 @@
                  (defn ~'-contextDestroyed [this# ~servlet-context-event]
                    ~(if destroy-sym
                       `(~destroy-sym)))))))))
+
+(defn compile-ws-servlet [project]
+  (let [ws-context (get-in project [:ring :websockets] {})
+        ws-max-idle-time (get-in project [:ring :ws-max-idle-time] 500000)]
+    (doseq [[ws-context-path ws-handler] ws-context]
+      (let [handler-ns  (symbol (namespace ws-handler))
+            servlet-ns (symbol (ws-servlet-ns ws-context-path ws-handler))]
+        (compile-form project servlet-ns
+                      `(do (ns ~servlet-ns
+                             (:require ring-jetty.util.servlet ~handler-ns)
+                             (:gen-class :extends org.eclipse.jetty.websocket.servlet.WebSocketServlet))
+                           (ring-jetty.util.servlet/defwsservice ~ws-handler ~ws-max-idle-time)))))))
 
 (defn create-war [project file-path]
   (-> (FileOutputStream. file-path)
@@ -229,8 +277,8 @@
 
 (defn add-servlet-dep [project]
   (-> project
-      (deps/add-if-missing '[ring/ring-servlet "1.2.1"])
-      (deps/add-if-missing '[javax.servlet/servlet-api "2.5"])))
+      (deps/add-if-missing '[ring-jetty/ring-servlet "0.1.0-SNAPSHOT"])
+      (deps/add-if-missing '[javax.servlet/javax.servlet-api "3.1.0"])))
 
 (defn war
   "Create a $PROJECT-$VERSION.war file."
@@ -245,6 +293,7 @@
        (when-not (and (number? result) (pos? result))
          (let [war-path (war-file-path project war-name)]
            (compile-servlet project)
+           (compile-ws-servlet project)
            (if (has-listener? project)
              (compile-listener project))
            (write-war project war-path)
