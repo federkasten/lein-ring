@@ -65,12 +65,15 @@
      (if (nrepl? project)
        `(do ~(start-nrepl-expr project) ~(start-server-expr project))
        (start-server-expr project))
-     (load-namespaces
-      'ring-jetty.server.leiningen
-      (if (nrepl? project) 'clojure.tools.nrepl.server)
-      (-> project :ring :handler)
-      (-> project :ring :init)
-      (-> project :ring :destroy)))))
+     (apply load-namespaces
+            (concat
+             ['ring-jetty.server.leiningen
+              (if (nrepl? project) 'clojure.tools.nrepl.server)
+              (-> project :ring :handler)
+              (-> project :ring :init)
+              (-> project :ring :destroy)]
+             (map last
+                  (-> project :ring :websockets)))))))
 
 (defn server
   "Start a Ring server and open a browser."
