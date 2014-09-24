@@ -30,10 +30,10 @@
   (update-project project deps/add-if-missing dep))
 
 (defn add-server-dep [project]
-  (add-dep project '[ring-server/ring-server "0.3.2-SNAPSHOT"]))
+  (add-dep project '[ring-jetty/ring-server "0.1.0-SNAPSHOT"]))
 
 (defn start-server-expr [project]
-  `(ring.server.leiningen/serve '~(select-keys project [:ring])))
+  `(ring-jetty.server.leiningen/serve '~(select-keys project [:ring])))
 
 (defn nrepl? [project]
   (-> project :ring :nrepl :start?))
@@ -66,7 +66,7 @@
        `(do ~(start-nrepl-expr project) ~(start-server-expr project))
        (start-server-expr project))
      (load-namespaces
-      'ring.server.leiningen
+      'ring-jetty.server.leiningen
       (if (nrepl? project) 'clojure.tools.nrepl.server)
       (-> project :ring :handler)
       (-> project :ring :init)
